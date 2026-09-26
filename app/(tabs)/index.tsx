@@ -1,98 +1,414 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  StyleSheet,
+  TextInput,
+  Alert,
+} from "react-native";
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { Tarea } from "../../types/tarea";
 
-export default function HomeScreen() {
+import {
+  obtenerTareas,
+  agregarTarea,
+  actualizarTarea,
+} from "../../services/tareas";
+
+export default function Tareas() {
+
+  const [tareas, setTareas] = useState<Tarea[]>([]);
+
+  const [nombre, setNombre] = useState("");
+  const [fecha, setFecha] = useState("");
+  const [responsable, setResponsable] = useState("");
+
+  const [editando, setEditando] = useState<number | null>(null);
+
+  const [mostrarFormulario, setMostrarFormulario] =
+    useState(false);
+
+
+  // CARGAR TAREAS
+  useEffect(() => {
+    cargarTareas();
+  }, []);
+
+
+  const cargarTareas = async () => {
+
+    try {
+
+      const data = await obtenerTareas();
+
+      setTareas(data);
+
+    } catch (error) {
+
+      console.log("Error:", error);
+
+    }
+  };
+
+
+  // LIMPIAR FORMULARIO
+  const limpiarFormulario = () => {
+
+    setNombre("");
+    setFecha("");
+    setResponsable("");
+
+    setEditando(null);
+
+    setMostrarFormulario(false);
+  };
+
+
+  // GUARDAR TAREA
+  const guardarTarea = async () => {
+
+  console.log("BOTÓN GUARDAR PRESIONADO");
+
+  if (
+    nombre.trim() === "" ||
+    fecha.trim() === "" ||
+    responsable.trim() === ""
+  ) {
+
+    Alert.alert(
+      "Campos incompletos",
+      "Debes llenar todos los campos."
+    );
+
+    return;
+  }
+
+  try {
+
+    const tarea = {
+      nombre: nombre.trim(),
+      fecha: fecha.trim(),
+      responsable: responsable.trim(),
+    };
+
+    console.log("TAREA A GUARDAR:", tarea);
+
+    if (editando !== null) {
+
+      await actualizarTarea(
+        editando,
+        tarea
+      );
+
+      Alert.alert(
+        "Correcto",
+        "Tarea actualizada correctamente."
+      );
+
+    } else {
+
+      await agregarTarea(tarea);
+
+      Alert.alert(
+        "Correcto",
+        "Tarea guardada correctamente."
+      );
+    }
+
+    limpiarFormulario();
+
+    await cargarTareas();
+
+  } catch (error: any) {
+
+    console.log("ERROR AL GUARDAR:", error);
+
+    Alert.alert(
+      "Error",
+      error?.message || "Ocurrió un error al guardar."
+    );
+  }
+};
+
+  // EDITAR
+  const editar = (tarea: Tarea) => {
+
+    setNombre(tarea.nombre);
+    setFecha(tarea.fecha);
+    setResponsable(tarea.responsable);
+
+    setEditando(tarea.id);
+
+    setMostrarFormulario(true);
+  };
+
+
+  
+
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <View style={styles.container}>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      <Text style={styles.titulo}>
+        LISTA DE TAREAS
+      </Text>
+
+
+      {/* BOTÓN NUEVA TAREA */}
+
+      {!mostrarFormulario && (
+
+        <TouchableOpacity
+          style={styles.botonNueva}
+          onPress={() => setMostrarFormulario(true)}
+        >
+
+          <Text style={styles.textoBoton}>
+            + Nueva tarea
+          </Text>
+
+        </TouchableOpacity>
+
+      )}
+
+
+      {/* FORMULARIO */}
+
+      {mostrarFormulario && (
+
+        <View style={styles.formulario}>
+
+          <Text style={styles.subtitulo}>
+            {editando !== null
+              ? "Editar tarea"
+              : "Nueva tarea"}
+          </Text>
+
+
+          <TextInput
+            style={styles.input}
+            placeholder="Nombre de la tarea"
+            value={nombre}
+            onChangeText={setNombre}
+          />
+
+
+          <TextInput
+            style={styles.input}
+            placeholder="Fecha (AAAA-MM-DD)"
+            value={fecha}
+            onChangeText={setFecha}
+          />
+
+
+          <TextInput
+            style={styles.input}
+            placeholder="Responsable"
+            value={responsable}
+            onChangeText={setResponsable}
+          />
+
+
+          <View style={styles.filaBotones}>
+
+            <TouchableOpacity
+              style={styles.botonGuardar}
+              onPress={guardarTarea}
+            >
+
+              <Text style={styles.textoBoton}>
+                {editando !== null
+                  ? "Actualizar"
+                  : "Guardar"}
+              </Text>
+
+            </TouchableOpacity>
+
+
+            <TouchableOpacity
+              style={styles.botonCancelar}
+              onPress={limpiarFormulario}
+            >
+
+              <Text style={styles.textoBoton}>
+                Cancelar
+              </Text>
+
+            </TouchableOpacity>
+
+          </View>
+
+        </View>
+
+      )}
+
+
+      {/* LISTA */}
+
+      <FlatList
+        data={tareas}
+
+        keyExtractor={(item) =>
+          item.id.toString()
+        }
+
+        renderItem={({ item }) => (
+
+          <View style={styles.tarea}>
+
+            <View style={styles.informacion}>
+
+              <Text style={styles.nombre}>
+                {item.nombre}
+              </Text>
+
+              <Text>
+                Fecha: {item.fecha}
+              </Text>
+
+              <Text>
+                Responsable: {item.responsable}
+              </Text>
+
+            </View>
+
+
+            <View style={styles.botones}>
+
+              <TouchableOpacity
+                style={styles.botonEditar}
+                onPress={() => editar(item)}
+              >
+
+                <Text style={styles.textoBoton}>
+                  Editar
+                </Text>
+
+              </TouchableOpacity>
+
+
+              
+
+            </View>
+
+          </View>
+
+        )}
+      />
+
+    </View>
   );
 }
 
+
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+
+  container: {
+    flex: 1,
+    padding: 20,
+    backgroundColor: "#1f1e1e",
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+
+  titulo: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 15,
+    color: "#ffffff",
+    marginLeft: 530,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+
+  botonNueva: {
+    backgroundColor: "#1976d2",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 15,
   },
+
+  formulario: {
+    backgroundColor: "white",
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 15,
+  },
+
+  subtitulo: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 10,
+  },
+
+  input: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 6,
+    padding: 10,
+    marginBottom: 10,
+  },
+
+  filaBotones: {
+    flexDirection: "row",
+    gap: 10,
+  },
+
+  botonGuardar: {
+    backgroundColor: "#1976d2",
+    padding: 10,
+    borderRadius: 6,
+    flex: 1,
+  },
+
+  botonCancelar: {
+    backgroundColor: "#757575",
+    padding: 10,
+    borderRadius: 6,
+    flex: 1,
+  },
+
+  tarea: {
+    backgroundColor: "white",
+    padding: 15,
+    marginBottom: 10,
+    borderRadius: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
+  informacion: {
+    flex: 1,
+  },
+
+  nombre: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 5,
+  },
+
+  botones: {
+    marginLeft: 10,
+    gap: 5,
+  },
+
+  botonEditar: {
+    backgroundColor: "#388e3c",
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+  },
+
+  botonEliminar: {
+    backgroundColor: "#d32f2f",
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+  },
+
+  textoBoton: {
+    color: "white",
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+
 });
